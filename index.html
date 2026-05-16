@@ -17,41 +17,49 @@
         return new window.origBlob(array, options);
       };
 
-      async function startEngine() {
+      let combinedBlobUrl = null;
+
+      async function prepareData() {
         const dataParts = [
           "Build/WaterParkSlides3Dx2.data.1",
           "Build/WaterParkSlides3Dx2.data.2"
         ];
 
         try {
-          const downloads = [
-            ...dataParts.map(url => fetch(url).then(res => {
-              if (!res.ok) throw new Error();
-              return res.arrayBuffer();
-            })),
-            fetch("Build/WaterParkSlides3Dx2.json").then(res => {
-              if (!res.ok) throw new Error();
-              return res.json();
-            })
-          ];
+          const downloads = dataParts.map(url => fetch(url).then(res => {
+            if (!res.ok) throw new Error();
+            return res.arrayBuffer();
+          }));
 
-          const results = await Promise.all(downloads);
-          const buffer1 = results[0];
-          const buffer2 = results[1];
-          const config = results[2];
+          const buffers = await Promise.all(downloads);
+          const combinedBlob = new window.origBlob(buffers, { type: "application/octet-stream" });
+          combinedBlobUrl = URL.createObjectURL(combinedBlob);
 
-          const combinedBlob = new window.origBlob([buffer1, buffer2], { type: "application/octet-stream" });
-          const blobUrl = URL.createObjectURL(combinedBlob);
+          const originalFetch = window.fetch;
+          window.fetch = function (input, init) {
+            if (typeof input === "string" && input.includes("WaterParkSlides3Dx2.data.unityweb")) {
+              return originalFetch(combinedBlobUrl, init);
+            }
+            return originalFetch(input, init);
+          };
 
-          config.dataUrl = blobUrl;
+          const originalXHR = window.XMLHttpRequest.prototype.open;
+          window.XMLHttpRequest.prototype.open = function (method, url, ...args) {
+            if (typeof url === "string" && url.includes("WaterParkSlides3Dx2.data.unityweb")) {
+              url = combinedBlobUrl;
+            }
+            return originalXHR.apply(this, [method, url, ...args]);
+          };
 
-          window.gameInstance = UnityLoader.instantiate("gameContainer", config, {
+          window.gameInstance = UnityLoader.instantiate("gameContainer", "Build/WaterParkSlides3Dx2.json", {
             onProgress: UnityProgress,
             Module: {
               onRuntimeInitialized: function () {
                 UnityProgress(window.gameInstance, "complete");
                 setTimeout(() => {
-                  URL.revokeObjectURL(blobUrl);
+                  if (combinedBlobUrl) {
+                    URL.revokeObjectURL(combinedBlobUrl);
+                  }
                 }, 5000);
               },
             },
@@ -62,7 +70,7 @@
         }
       }
 
-      startEngine();
+      prepareData();
     </script>
   </head>
   <body>
