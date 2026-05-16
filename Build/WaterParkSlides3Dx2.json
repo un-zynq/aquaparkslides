@@ -1,7 +1,7 @@
 {
   "companyName": "Water Park Slides 3D",
   "productName": "Water Park Slides 3D",
-  "dataUrl": "WaterParkSlides3Dx2.data.unityweb",
+  "dataUrl": "",
   "wasmCodeUrl": "WaterParkSlides3Dx2.wasm.code.unityweb",
   "wasmFrameworkUrl": "WaterParkSlides3Dx2.wasm.framework.unityweb",
   "TOTAL_MEMORY": 268435456,
