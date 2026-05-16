@@ -16,14 +16,53 @@
         }
         return new window.origBlob(array, options);
       };
-      var gameInstance = UnityLoader.instantiate("gameContainer", "Build/WaterParkSlides3Dx2.json", {
-        onProgress: UnityProgress,
-        Module: {
-          onRuntimeInitialized: function () {
-            UnityProgress(gameInstance, "complete");
-          },
-        },
-      });
+
+      async function startEngine() {
+        const dataParts = [
+          "Build/WaterParkSlides3Dx2.data.1",
+          "Build/WaterParkSlides3Dx2.data.2"
+        ];
+
+        try {
+          const downloads = [
+            ...dataParts.map(url => fetch(url).then(res => {
+              if (!res.ok) throw new Error();
+              return res.arrayBuffer();
+            })),
+            fetch("Build/WaterParkSlides3Dx2.json").then(res => {
+              if (!res.ok) throw new Error();
+              return res.json();
+            })
+          ];
+
+          const results = await Promise.all(downloads);
+          const buffer1 = results[0];
+          const buffer2 = results[1];
+          const config = results[2];
+
+          const combinedBlob = new window.origBlob([buffer1, buffer2], { type: "application/octet-stream" });
+          const blobUrl = URL.createObjectURL(combinedBlob);
+
+          config.dataUrl = blobUrl;
+
+          window.gameInstance = UnityLoader.instantiate("gameContainer", config, {
+            onProgress: UnityProgress,
+            Module: {
+              onRuntimeInitialized: function () {
+                UnityProgress(window.gameInstance, "complete");
+                setTimeout(() => {
+                  URL.revokeObjectURL(blobUrl);
+                }, 5000);
+              },
+            },
+          });
+
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      startEngine();
     </script>
   </head>
   <body>
@@ -32,4 +71,3 @@
     </div>
   </body>
 </html>
-
